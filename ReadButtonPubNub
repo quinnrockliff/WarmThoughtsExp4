@@ -1,0 +1,171 @@
+
+/*
+ * Creation & Computation - Digital Futures, OCAD University
+ * Kate Hartman / Nick Puckett edited by Quinn Rockliff and Emma Brito
+ * 
+ *read 2 random values from PubNub on a timer, send new values on button press
+ *  
+ * 
+ * 
+ */
+#include <ArduinoJson.h> 
+#include <SPI.h>
+
+#include <WiFi101.h>
+#define PubNub_BASE_CLIENT WiFiClient
+#include <PubNub.h>
+
+static char ssid[] = "ocadu-embedded";      //SSID of the wireless network
+static char pass[] = "internetofthings";    //password of that network
+int status = WL_IDLE_STATUS;                // the Wifi radio's status
+
+const static char pubkey[] = "x";  //get this from your PUbNub account
+const static char subkey[] = "y";  //get this from your PubNub account
+
+const static char pubChannel[] = "Quinn"; //choose a name for the channel to publish messages to
+const static char subChannel[] = "Emma"; //choose a name for the channel to read messages from
+
+
+int motorPin = 11;
+
+
+int buttonPin = 13;
+int buttonPrev = 1;
+int buttonVal;
+
+
+unsigned long lastRefresh = 0;
+int publishRate = 2000;
+
+int sensorPin1 = 13; 
+
+int State2;
+
+int yourVal1;
+//int yourVal2;
+
+//int myVal1;
+//int myVal2;
+
+
+void setup() 
+{
+  pinMode(buttonPin, INPUT_PULLUP);
+  pinMode(motorPin, OUTPUT);  
+  Serial.begin(9600);
+  connectToServer();
+
+}
+
+void loop() 
+{
+  
+digitalWrite(motorPin,yourVal1);
+
+//buttonVal = digitalRead(buttonPin);
+
+
+//myVal1 = analogRead(sensorPin1);
+//myVal2 = random(100,200);
+
+  if (yourVal1 == 1) {
+    // turn motor on:
+    analogWrite(motorPin, 255);
+  } else {
+    // turn motor off:
+    analogWrite(motorPin, 0);
+  }
+
+
+  //if(millis()-lastRefresh>=publishRate)     //theTimer to trigger the reads 
+  {
+  readFromPubNub();
+   
+  Serial.print("State2 ");
+  Serial.println(yourVal1);
+   
+  //Serial.print("randoVal2 ");
+  // Serial.println(yourVal2);
+ 
+  lastRefresh=millis();   
+  }
+
+buttonPrev = buttonVal; //store the value of this cycle to compare next loop
+
+}
+
+
+void connectToServer()
+{
+  WiFi.setPins(8,7,4,2); //This is specific to the feather M0
+ 
+  status = WiFi.begin(ssid, pass);                    //attempt to connect to the network
+  Serial.println("*Connecting to WiFi Network*");
+
+
+ for(int trys = 1; trys<=10; trys++)                    //use a loop to attempt the connection more than once
+ { 
+    if ( status == WL_CONNECTED)                        //check to see if the connection was successful
+    {
+      Serial.print("Connected to ");
+      Serial.println(ssid);
+  
+      PubNub.begin(pubkey, subkey);                      //connect to the PubNub Servers
+      Serial.println("PubNub Connected"); 
+      break;                                             //exit the connection loop     
+    } 
+    else 
+    {
+      Serial.print("Could Not Connect - Attempt:");
+      Serial.println(trys);
+
+    }
+
+    if(trys==10)
+    {
+      Serial.println("I don't this this is going to work");
+    }
+    delay(1000);
+ }
+
+  
+}
+
+
+void readFromPubNub()
+{
+  StaticJsonBuffer<1200> inBuffer;                    //create a memory buffer to hold a JSON Object
+  WiFiClient *sClient =PubNub.history(subChannel,1);
+
+  if (!sClient) {
+    Serial.println("message read error");
+    delay(1000);
+    return;
+  }
+
+  while (sClient->connected()) 
+  {
+    while (sClient->connected() && !sClient->available()) ; // wait
+    char c = sClient->read();
+    JsonObject& sMessage = inBuffer.parse(*sClient);
+    
+    if(sMessage.success())
+    {
+      //sMessage.prettyPrintTo(Serial); //uncomment to see the JSON message in the serial monitor
+      yourVal1 = sMessage["State2"];  //
+      Serial.print("State2");
+      Serial.println(yourVal1);
+      //yourVal2 = sMessage["randoVal2"];
+      //Serial.print("randoVal2 ");
+      //Serial.println(yourVal2);
+      
+    }
+    
+   
+  }
+  
+  sClient->stop();
+
+}
+
+
